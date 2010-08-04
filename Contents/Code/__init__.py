@@ -211,13 +211,13 @@ class IMDBAgent(Agent.Movies):
       metadata.studio = info_dict["Company"].find('a').text.strip()
       
     # Rating.
-    try: metadata.community_rating = float(self.el_text(page, '//div[@class="starbar-meta"]/b').split('/')[0])
+    try: metadata.rating = float(self.el_text(page, '//div[@class="starbar-meta"]/b').split('/')[0])
     except: pass
       
     # Runtime.
     try:
       if info_dict.has_key('Runtime'):
-        metadata.runtime = int(info_dict['Runtime'].text.strip().split()[0]) * 60 * 1000
+        metadata.duration = int(info_dict['Runtime'].text.strip().split()[0]) * 60 * 1000
     except:
       pass
     
