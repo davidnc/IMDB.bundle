@@ -180,7 +180,7 @@ class IMDBAgent(Agent.Movies):
     #  print "Result:", r.name
     
   
-  def update(self, metadata, lang):
+  def update(self, metadata, media, lang):
 
     page = HTML.ElementFromURL(IMDB_MOVIE_PAGE % metadata.id)
     keywords = HTML.ElementFromURL(IMDB_MOVIE_TAGS % metadata.id)
