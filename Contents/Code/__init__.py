@@ -28,8 +28,15 @@ class IMDBAgent(Agent.Movies):
         time.sleep(1)
         
     return res
+    
+  def HTMLElementFromURLWithRetries(self, url):
+    res = self.httpRequest(url)
+    if res:
+      return HTML.ElementFromString(res)
+    return None
   
   def search(self, results, media, lang):
+    
     if media.guid:
       # Add a result for the id found in the passed in guid hint (likely from an .nfo file)      
       imdbSearchHTML = str(self.httpRequest(IMDB_MOVIE_PAGE % media.guid))
@@ -182,9 +189,9 @@ class IMDBAgent(Agent.Movies):
   
   def update(self, metadata, media, lang):
 
-    page = HTML.ElementFromURL(IMDB_MOVIE_PAGE % metadata.id)
-    keywords = HTML.ElementFromURL(IMDB_MOVIE_TAGS % metadata.id)
-    cast = HTML.ElementFromURL(IMDB_MOVIE_CAST % metadata.id)
+    page = self.HTMLElementFromURLWithRetries(IMDB_MOVIE_PAGE % metadata.id)
+    keywords = self.HTMLElementFromURLWithRetries(IMDB_MOVIE_TAGS % metadata.id)
+    cast = self.HTMLElementFromURLWithRetries(IMDB_MOVIE_CAST % metadata.id)
     
     # Give the IMDB server a break.
     Thread.Sleep(0.25)
@@ -222,7 +229,7 @@ class IMDBAgent(Agent.Movies):
       pass
     
     # Tagline.
-    taglines = HTML.ElementFromURL(IMDB_MOVIE_TAGLINES % metadata.id)
+    taglines = self.HTMLElementFromURLWithRetries(IMDB_MOVIE_TAGLINES % metadata.id)
     t = taglines.xpath('//div[@id="tn15content"]/p')
     if len(t) > 0:
       metadata.tagline = t[-1].text.strip() #grab the oldest tagline as the default
@@ -238,10 +245,10 @@ class IMDBAgent(Agent.Movies):
       if type is not None and type.text.lower() != 'add synopsis':
         type = type.get('href')
         if type == 'synopsis':
-          plot = HTML.ElementFromURL(IMDB_MOVIE_SYNO % metadata.id)
+          plot = self.HTMLElementFromURLWithRetries(IMDB_MOVIE_SYNO % metadata.id)
           metadata.summary = self.el_text(plot, '//div[@id="swiki.2.1"]', True)
         else:
-          plot = HTML.ElementFromURL(IMDB_MOVIE_PLOT % metadata.id)
+          plot = self.HTMLElementFromURLWithRetries(IMDB_MOVIE_PLOT % metadata.id)
           p = plot.xpath('//p[@class="plotpar"]')
           if len(p) > 0:
             metadata.summary = p[0].text_content().strip()
@@ -341,7 +348,7 @@ class IMDBAgent(Agent.Movies):
     # Poster.
     poster = page.xpath('//a[@name="poster"]')
     if poster:
-      poster_page = HTML.ElementFromURL('http://www.imdb.com' + poster[0].get('href'))
+      poster_page = self.HTMLElementFromURLWithRetries('http://www.imdb.com' + poster[0].get('href'))
       poster_img = poster_page.xpath('//img[@title=""]')
       if len(poster_img) > 0:
         path = poster_img[0].get('src')
@@ -476,7 +483,7 @@ class IMDBAgent(Agent.Movies):
     amazonYear = int(name.split('(')[-1][:-1])
     amazonName = name.replace(' (' + str(amazonYear) + ')','').strip(' "')
     
-    imdbElement = HTML.ElementFromURL(IMDB_MOVIE_PAGE % id)
+    imdbElement = self.HTMLElementFromURLWithRetries(IMDB_MOVIE_PAGE % id)
     (imdbName, imdbYear) = self.getImdbName(imdbElement, media.name)
     
     # Sanity check amazon<-->imdb link...sometimes amazon is *way* off on their imdb links
