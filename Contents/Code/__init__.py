@@ -19,6 +19,7 @@ class IMDBAgent(Agent.Movies):
   languages = [Locale.Language.English]
   
   def httpRequest(self, url):
+    time.sleep(1)
     res = None
     for i in range(5):
       try: 
