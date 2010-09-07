@@ -108,7 +108,9 @@ class IMDBAgent(Agent.Movies):
               try:
                 imdbHTML = str(self.httpRequest(IMDB_MOVIE_PAGE % id))
                 imdbXML = HTML.ElementFromString(imdbHTML)
+                Log('Trying ' + (IMDB_MOVIE_PAGE % id))
                 (imdbName, imdbYear) = self.getImdbName(imdbXML, media.name, id)
+                Log("Found %s %s" % (imdbName, imdbYear))
               
                 if imdbYear > datetime.datetime.now().year: #check to see if the item's release year is in the future, if so penalize
                   #Log(imdbName + ' penalizing for future release date')
@@ -141,7 +143,8 @@ class IMDBAgent(Agent.Movies):
                
                 results.Append( MetadataSearchResult(id = id, name  = imdbName, year = imdbYear, lang  = lang, score = score - (scorePenalty + subsequentSearchPenalty)) )
               except:
-                    pass
+                Log('Exception processing IMDB Result')
+                pass
            
             score = score - 4 #each google entry is worth less, but we subtract even if we don't use the entry...might need some thought.
       
