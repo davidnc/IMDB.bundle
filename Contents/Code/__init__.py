@@ -206,10 +206,6 @@ class IMDBAgent(Agent.Movies):
       if i.find('h5') is not None and i.find('h5').text is not None:
         info_dict[i.find('h5').text.strip("(: ")] = i.find('div')
     
-    # Sanity check, no tags = FAIL.
-    if len(info_dict) == 0:
-      raise Exception("No good data on IMDB page " + (IMDB_MOVIE_PAGE % metadata.id))
-    
     # Title.
     (metadata.title, metadata.year) = self.getImdbName(page, None, metadata.id)
     if not metadata.title or len(metadata.title) == 0:
