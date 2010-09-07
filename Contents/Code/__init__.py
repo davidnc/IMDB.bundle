@@ -417,9 +417,11 @@ class IMDBAgent(Agent.Movies):
     name = xml.xpath('//h1')[0].text_content().strip()
     if name.count('(VG)') > 0:
       #is a videogame, just return the name as is so the calling function can abort
+      Log("Skipping video game: [%s]" % name)
       return name  
 
     # Parse the name and year.
+    name = re.sub('[ \n\r]+', ' ', name, re.MULTILINE)
     Log("NAME: [%s]" % name)
     m = re.match('(.*)[ ]+\(([12][0-9]{3})(/[A-Z]+)?\).*$', name)
     year = None
