@@ -144,6 +144,7 @@ class IMDBAgent(Agent.Movies):
                 results.Append( MetadataSearchResult(id = id, name  = imdbName, year = imdbYear, lang  = lang, score = score - (scorePenalty + subsequentSearchPenalty)) )
               except:
                 Log('Exception processing IMDB Result')
+                raise
                 pass
            
             score = score - 4 #each google entry is worth less, but we subtract even if we don't use the entry...might need some thought.
