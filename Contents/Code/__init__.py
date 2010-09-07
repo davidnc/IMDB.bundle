@@ -144,7 +144,6 @@ class IMDBAgent(Agent.Movies):
                 results.Append( MetadataSearchResult(id = id, name  = imdbName, year = imdbYear, lang  = lang, score = score - (scorePenalty + subsequentSearchPenalty)) )
               except:
                 Log('Exception processing IMDB Result')
-                raise
                 pass
            
             score = score - 4 #each google entry is worth less, but we subtract even if we don't use the entry...might need some thought.
@@ -421,9 +420,12 @@ class IMDBAgent(Agent.Movies):
       return name  
 
     # Parse the name and year.
+    Log("NAME: [%s]" % name)
     m = re.match('(.*)[ ]+\(([12][0-9]{3})(/[A-Z]+)?\).*$', name)
+    year = None
     if m:
       name,year = (m.group(1), m.group(2))
+      year = int(year)
     
     # Check to see if any AKAS name is a better match.
     name = self.checkAKASnames(id, name, mediaName)
@@ -432,7 +434,7 @@ class IMDBAgent(Agent.Movies):
     if name[0] == '"' and name[-1] == '"':
       name = name[1:-1]
 
-    return (name, int(year))
+    return (name, year)
     
   def scrapeIMDB_html(self, results, media, lang, resultHTML, scoreOverride=False, useScore=None):
     pageElement = HTML.ElementFromString(resultHTML)
