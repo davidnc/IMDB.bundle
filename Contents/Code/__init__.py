@@ -57,6 +57,9 @@ class IMDBAgent(Agent.Movies):
   
   def search(self, results, media, lang):
     
+    # FAST FAIL.
+    return
+    
     if media.guid:
       # Add a result for the id found in the passed in guid hint (likely from an .nfo file)      
       imdbSearchHTML = str(self.httpRequest(IMDB_MOVIE_PAGE % media.guid))
