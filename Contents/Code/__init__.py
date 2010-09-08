@@ -222,6 +222,9 @@ class IMDBAgent(Agent.Movies):
   
   def update(self, metadata, media, lang):
 
+    # FAST FAIL.
+    return
+
     page = self.HTMLElementFromURLWithRetries(IMDB_MOVIE_PAGE % metadata.id)
     keywords = self.HTMLElementFromURLWithRetries(IMDB_MOVIE_TAGS % metadata.id)
     cast = self.HTMLElementFromURLWithRetries(IMDB_MOVIE_CAST % metadata.id)
