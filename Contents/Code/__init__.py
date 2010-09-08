@@ -11,8 +11,27 @@ IMDB_MOVIE_CAST = 'http://www.imdb.com/title/%s/fullcredits'
 GOOGLE_JSON_URL = 'http://ajax.googleapis.com/ajax/services/search/web?v=1.0&rsz=large&q=%s'   #[might want to look into language/country stuff at some point] param info here: http://code.google.com/apis/ajaxsearch/documentation/reference.html
 BING_JSON_URL   = 'http://api.bing.net/json.aspx?AppId=879000C53DA17EA8DB4CD1B103C00243FD0EFEE8&Version=2.2&Query=%s&Sources=web&Web.Count=8&JsonType=raw'
 
+from random import choice
+
+def GetUserAgent():
+  platform = ['X11', 'Windows', 'Macintosh']
+  os = {}
+  os['X11'] = ['Linux x86_64', 'Linux i686', 'FreeBSD i386']
+  os['Windows'] = ['Windows NT 5.1', 'Windows NT 6.1', 'Windows NT 6.0', 'Windows NT 5.0']
+  os['Macintosh'] = ['Intel Mac OS X 10.6', 'Intel Mac OS X 10.5', 'Intel Mac OS X 10.5']
+  lang = ['en-US', 'pl', 'de', 'fr', 'rv', 'nl', 'it', 'ru']
+  rv = ['1.9.2.2) Gecko/20100316 Firefox/3.6.2', 'Gecko/20100316 Firefox/3.6.2 GTB7.0', 'Gecko/20100316 Firefox/3.6.2 (.NET CLR 3.5.30729)', '1.9.2.8) Gecko/20100727 Firefox/3.6.8', '1.9.2.8) Gecko/20100722 Firefox/3.6.8 ( .NET CLR 3.5.30729; .NET4.0C)']
+  
+  thePlat = choice(platform)
+  theOS = choice(os[thePlat])
+  theLang = choice(lang)
+  theRv = choice(rv)
+  return 'Mozilla/5.0 (%s; U; %s; %s; rv:%s' % (thePlat, theOS, theLang, theRv)
+
+UserAgent = GetUserAgent()
+
 def Start():
-  HTTP.CacheTime = CACHE_1WEEK
+  HTTP.CacheTime = 0
   
 class IMDBAgent(Agent.Movies):
   name = 'IMDB'
@@ -23,7 +42,7 @@ class IMDBAgent(Agent.Movies):
     res = None
     for i in range(5):
       try: 
-        res = HTTP.Request(url)
+        res = HTTP.Request(url, headers = {'User-agent': UserAgent})
       except: 
         Log("Error hitting HTTP url:", url)
         time.sleep(1)
@@ -56,6 +75,8 @@ class IMDBAgent(Agent.Movies):
     BING_JSON = BING_JSON_URL % String.Quote(normalizedName + searchYear, usePlus=True) + '+site:imdb.com'
     
     subsequentSearchPenalty = 0
+    idMap = {}
+    
     for s in [GOOGLE_JSON_QUOTES, GOOGLE_JSON_NOQUOTES, GOOGLE_JSON_NOSITE, BING_JSON]:
       if s == GOOGLE_JSON_QUOTES and (media.name.count(' ') == 0 or media.name.count('&') > 0 or media.name.count(' and ') > 0): # no reason to run this test, plus it screwed up some searches
         continue 
@@ -66,7 +87,7 @@ class IMDBAgent(Agent.Movies):
         hasResults = False
         try:
           if s.count('bing.net') > 0:
-            jsonObj = JSON.ObjectFromURL(s)['SearchResponse']['Web']
+            jsonObj = JSON.ObjectFromURL(s, cacheTime=CACHE_1DAY)['SearchResponse']['Web']
             if jsonObj['Total'] > 0:
               jsonObj = jsonObj['Results']
               hasResults = True
@@ -106,6 +127,11 @@ class IMDBAgent(Agent.Movies):
                 #Log('penalizing for abnormal tt link')
                 scorePenalty += 10
               try:
+                # Don't ask for the same ID more than once.
+                if idMap.has_key(id):
+                  continue
+                idMap[id] = True
+                
                 imdbHTML = str(self.httpRequest(IMDB_MOVIE_PAGE % id))
                 imdbXML = HTML.ElementFromString(imdbHTML)
                 Log('Trying ' + (IMDB_MOVIE_PAGE % id))
@@ -524,3 +550,4 @@ class IMDBAgent(Agent.Movies):
          lang  = lang,
          score = score))
       Log('scraped results: ' + name + ' | year = ' + str(year) + ' | score = ' + str(score))
+      
