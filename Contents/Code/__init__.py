@@ -19,7 +19,7 @@ def GetUserAgent():
   os['X11'] = ['Linux x86_64', 'Linux i686', 'FreeBSD i386']
   os['Windows'] = ['Windows NT 5.1', 'Windows NT 6.1', 'Windows NT 6.0', 'Windows NT 5.0']
   os['Macintosh'] = ['Intel Mac OS X 10.6', 'Intel Mac OS X 10.5', 'Intel Mac OS X 10.5']
-  lang = ['en-US', 'pl', 'de', 'fr', 'rv', 'nl', 'it', 'ru']
+  lang = ['en-US', 'pl', 'de', 'fr', 'es', 'nl', 'it', 'ru']
   rv = ['1.9.2.2) Gecko/20100316 Firefox/3.6.2', 'Gecko/20100316 Firefox/3.6.2 GTB7.0', 'Gecko/20100316 Firefox/3.6.2 (.NET CLR 3.5.30729)', '1.9.2.8) Gecko/20100727 Firefox/3.6.8', '1.9.2.8) Gecko/20100722 Firefox/3.6.8 ( .NET CLR 3.5.30729; .NET4.0C)']
   
   thePlat = choice(platform)
