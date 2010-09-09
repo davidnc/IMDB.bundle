@@ -1,40 +1,13 @@
 import datetime, re, time, unicodedata
 
-IMDB_SEARCH = 'http://www.imdb.com/find?tt=on&q=%s' #'&site=aka'
-IMDB_MOVIE_PAGE = 'http://www.imdb.com/title/%s/'
-IMDB_MOVIE_PLOT = 'http://www.imdb.com/title/%s/plotsummary'
-IMDB_MOVIE_SYNO = 'http://www.imdb.com/title/%s/synopsis'
-IMDB_MOVIE_TAGS = 'http://www.imdb.com/title/%s/keywords'
-IMDB_MOVIE_TAGLINES = 'http://www.imdb.com/title/%s/taglines'
-IMDB_MOVIE_CAST = 'http://www.imdb.com/title/%s/fullcredits'
-
 GOOGLE_JSON_URL = 'http://ajax.googleapis.com/ajax/services/search/web?v=1.0&rsz=large&q=%s'   #[might want to look into language/country stuff at some point] param info here: http://code.google.com/apis/ajaxsearch/documentation/reference.html
 BING_JSON_URL   = 'http://api.bing.net/json.aspx?AppId=879000C53DA17EA8DB4CD1B103C00243FD0EFEE8&Version=2.2&Query=%s&Sources=web&Web.Count=8&JsonType=raw'
 
-from random import choice
-
-def GetUserAgent():
-  platform = ['X11', 'Windows', 'Macintosh']
-  os = {}
-  os['X11'] = ['Linux x86_64', 'Linux i686', 'FreeBSD i386']
-  os['Windows'] = ['Windows NT 5.1', 'Windows NT 6.1', 'Windows NT 6.0', 'Windows NT 5.0']
-  os['Macintosh'] = ['Intel Mac OS X 10.6', 'Intel Mac OS X 10.5', 'Intel Mac OS X 10.5']
-  lang = ['en-US', 'pl', 'de', 'fr', 'es', 'nl', 'it', 'ru']
-  rv = ['1.9.2.2) Gecko/20100316 Firefox/3.6.2', 'Gecko/20100316 Firefox/3.6.2 GTB7.0', 'Gecko/20100316 Firefox/3.6.2 (.NET CLR 3.5.30729)', '1.9.2.8) Gecko/20100727 Firefox/3.6.8', '1.9.2.8) Gecko/20100722 Firefox/3.6.8 ( .NET CLR 3.5.30729; .NET4.0C)']
-  
-  thePlat = choice(platform)
-  theOS = choice(os[thePlat])
-  theLang = choice(lang)
-  theRv = choice(rv)
-  return 'Mozilla/5.0 (%s; U; %s; %s; rv:%s' % (thePlat, theOS, theLang, theRv)
-
-UserAgent = GetUserAgent()
-
 def Start():
-  HTTP.CacheTime = 0
+  HTTP.CacheTime = CACHE_1DAY
   
 class IMDBAgent(Agent.Movies):
-  name = 'IMDB'
+  name = 'Plex'
   languages = [Locale.Language.English]
   
   def httpRequest(self, url):
@@ -57,13 +30,12 @@ class IMDBAgent(Agent.Movies):
   
   def search(self, results, media, lang):
     
-    # FAST FAIL.
-    return
-    
+    # See if we're being passed the ID.
     if media.guid:
       # Add a result for the id found in the passed in guid hint (likely from an .nfo file)      
-      imdbSearchHTML = str(self.httpRequest(IMDB_MOVIE_PAGE % media.guid))
-      self.scrapeIMDB_html(results, media, lang, imdbSearchHTML, scoreOverride=True, useScore=100)
+      #imdbSearchHTML = str(self.httpRequest(IMDB_MOVIE_PAGE % media.guid))
+      #self.scrapeIMDB_html(results, media, lang, imdbSearchHTML, scoreOverride=True, useScore=100)
+      pass
           
     if media.year:
       searchYear = ' (' + str(media.year) + ')'
@@ -74,7 +46,6 @@ class IMDBAgent(Agent.Movies):
     GOOGLE_JSON_QUOTES = GOOGLE_JSON_URL % String.Quote('"' + normalizedName + searchYear + '"', usePlus=True) + '+site:imdb.com'
     GOOGLE_JSON_NOQUOTES = GOOGLE_JSON_URL % String.Quote(normalizedName + searchYear, usePlus=True) + '+site:imdb.com'
     GOOGLE_JSON_NOSITE = GOOGLE_JSON_URL % String.Quote(normalizedName + searchYear, usePlus=True) + '+imdb.com'
-    
     BING_JSON = BING_JSON_URL % String.Quote(normalizedName + searchYear, usePlus=True) + '+site:imdb.com'
     
     subsequentSearchPenalty = 0
@@ -83,10 +54,14 @@ class IMDBAgent(Agent.Movies):
     for s in [GOOGLE_JSON_QUOTES, GOOGLE_JSON_NOQUOTES, GOOGLE_JSON_NOSITE, BING_JSON]:
       if s == GOOGLE_JSON_QUOTES and (media.name.count(' ') == 0 or media.name.count('&') > 0 or media.name.count(' and ') > 0): # no reason to run this test, plus it screwed up some searches
         continue 
+        
       subsequentSearchPenalty += 1
-      if len(results) <= 3: #check to see if we need to bother running the subsequent searches
+
+       # Check to see if we need to bother running the subsequent searches
+      if len(results) <= 3:
         score = 99
-        #make sure we have results and normalize
+        
+        # Make sure we have results and normalize them.
         hasResults = False
         try:
           if s.count('bing.net') > 0:
@@ -95,6 +70,7 @@ class IMDBAgent(Agent.Movies):
               jsonObj = jsonObj['Results']
               hasResults = True
               urlKey = 'Url'
+              titleKey = 'Title'
           elif s.count('googleapis.com') > 0:
             jsonObj = JSON.ObjectFromURL(s)
             if jsonObj['responseData'] != None:
@@ -102,11 +78,32 @@ class IMDBAgent(Agent.Movies):
               if len(jsonObj) > 0:
                 hasResults = True
                 urlKey = 'unescapedUrl'
+                titleKey = 'titleNoFormatting'
         except:
+          Log("Exception processing search engine results.")
           pass
-              
+          
+        # Now walk through the results.    
         if hasResults:
           for r in jsonObj:
+            
+            # Get data.
+            url = r[urlKey]
+            title = r[titleKey]
+
+            # Parse out title, year, and extra.
+            print "TITLE:", title
+            titleRx = '(.*) \(([0-9]+)(/.*)?\).*'
+            m = re.match(titleRx, title)
+            if m:
+              # Use it.
+              imdbName = m.groups(1)[0]
+              imdbYear = int(m.groups(1)[1])
+            else:
+              # Doesn't match, let's skip it.
+              Log("Skipping strange title: " + title)
+              continue
+              
             scorePenalty = 0
             url = r[urlKey].lower().replace('us.vdc','www').replace('title?','title/tt') #massage some of the weird url's google has
             if url[-1:] == '/':
@@ -115,7 +112,10 @@ class IMDBAgent(Agent.Movies):
             splitUrl = url.split('/')
       
             if len(splitUrl) == 6 and splitUrl[-2].startswith('tt'):
-              #this is the case where it is not just a link to the main imdb title page, but to a subpage. in some odd cases, google is a bit off so let's include these with lower scores "just in case"
+              
+              # This is the case where it is not just a link to the main imdb title page, but to a subpage. 
+              # In some odd cases, google is a bit off so let's include these with lower scores "just in case".
+              #
               scorePenalty = 10
               del splitUrl[-1]
       
@@ -124,29 +124,26 @@ class IMDBAgent(Agent.Movies):
                 del splitUrl[-2]
               scorePenalty += 5
 
-            if len(splitUrl) == 5 and splitUrl[-1].startswith('tt'):       
+            if len(splitUrl) == 5 and splitUrl[-1].startswith('tt'):
               id = splitUrl[-1]
-              if id.count('+') > 0: #not a normal tt link
-                #Log('penalizing for abnormal tt link')
+              if id.count('+') > 0:
+                # Penalizing for abnormal tt link.
                 scorePenalty += 10
               try:
-                # Don't ask for the same ID more than once.
+                # Don't process for the same ID more than once.
                 if idMap.has_key(id):
                   continue
+                  
                 idMap[id] = True
                 
-                imdbHTML = str(self.httpRequest(IMDB_MOVIE_PAGE % id))
-                imdbXML = HTML.ElementFromString(imdbHTML)
-                Log('Trying ' + (IMDB_MOVIE_PAGE % id))
-                (imdbName, imdbYear) = self.getImdbName(imdbXML, media.name, id)
-                Log("Found %s %s" % (imdbName, imdbYear))
-              
-                if imdbYear > datetime.datetime.now().year: #check to see if the item's release year is in the future, if so penalize
-                  #Log(imdbName + ' penalizing for future release date')
+                # Check to see if the item's release year is in the future, if so penalize.
+                if imdbYear > datetime.datetime.now().year:
+                  Log(imdbName + ' penalizing for future release date')
                   scorePenalty += 25
               
-                elif media.year and int(media.year) != int(imdbYear): #check to see if the hinted year is different from imdb's year, if so penalize
-                  #Log(imdbName + ' penalizing for hint year and imdb year being different')
+                # Check to see if the hinted year is different from imdb's year, if so penalize.
+                elif media.year and int(media.year) != int(imdbYear): 
+                  Log(imdbName + ' penalizing for hint year and imdb year being different')
                   yearDiff = abs(int(media.year)-(int(imdbYear)))
                   if yearDiff == 1:
                     scorePenalty += 5
@@ -154,28 +151,35 @@ class IMDBAgent(Agent.Movies):
                     scorePenalty += 10
                   else:
                     scorePenalty += 15
-                elif media.year and int(media.year) != int(imdbYear): #bonus (or negatively penalize) for equal years
+                    
+                # Bonus (or negatively penalize) for year match.
+                elif media.year and int(media.year) != int(imdbYear): 
                   scorePenalty += -5
                 
-                if imdbName.count('(VG)') > 0: # VideoGame, runaway!
+                # It's a video game, run away!
+                if title.count('(VG)') > 0:
                   break
-                if imdbHTML.count('(TV series)') > 0 or imdbHTML.count('<h5>TV Series:</h5>') > 0 or imdbHTML.count('<span class="tv-extra">') > 0: # or imdbHTML.count('<span class="tv-extra">') > 0:
-                  #Log(imdbName + ' penalizing for TV series')
+                  
+                # It's a TV series, don't use it.
+                if title.count('(TV series)') > 0:
+                  Log(imdbName + ' penalizing for TV series')
                   scorePenalty += 6
               
-                #sanity check to make sure we have SOME common substring
+                # Sanity check to make sure we have SOME common substring.
                 longestCommonSubstring = len(Util.LongestCommonSubstring(media.name.lower(), imdbName.lower()))
-                #Log('imdbName=' + imdbName + ' media.name=' + media.name + ' --- longestCommonSubstring = ' + str(longestCommonSubstring) + ' ratio: ' + str(float(longestCommonSubstring) / len(imdbName))) 
-                if (float(longestCommonSubstring) / len(media.name)) < .15: #if we don't have at least 10% in common, then penalize below the 80 point threshold
-                  #Log(imdbName + ' penalizing for super low common substring')
+                
+                # If we don't have at least 10% in common, then penalize below the 80 point threshold
+                if (float(longestCommonSubstring) / len(media.name)) < .15: 
                   scorePenalty += 25
-               
+                
+                # Finally, add the result.
                 results.Append( MetadataSearchResult(id = id, name  = imdbName, year = imdbYear, lang  = lang, score = score - (scorePenalty + subsequentSearchPenalty)) )
               except:
                 Log('Exception processing IMDB Result')
                 pass
            
-            score = score - 4 #each google entry is worth less, but we subtract even if we don't use the entry...might need some thought.
+            # Each search entry is worth less, but we subtract even if we don't use the entry...might need some thought.
+            score = score - 4 
       
     # Add hashing results if we need to.
     results.Sort('score', descending=True)
@@ -188,20 +192,11 @@ class IMDBAgent(Agent.Movies):
       if media.openSubtitlesHash is not None and len(media.openSubtitlesHash) > 0:
         try: #just in case one of these sites is down, the whole thing doesn't fail.
           #self.addHashResult(results, media, lang, '.opensubtitles', score=85)
-          self.addHashResult(results, media, lang, '.themoviedb', score=85)
+          #self.addHashResult(results, media, lang, '.themoviedb', score=85)
+          pass
         except:
           pass
     
-    #we can also hit google and look for amazon links -- may not be needed at all anymore
-    #if hiScore < 85:
-      #Log('searching google and check amazon links')
-      #for searchRes in XML.ElementFromURL(GOOGLE_SEARCH % String.Quote(media.name + searchYear),True).xpath("//h3[@class='r']/a")[0:1]:
-      #  resultUrl = searchRes.get('href')
-      #  elif resultUrl.count('amazon.com') > 0:
-      #    amazonItemHTML = str(self.httpRequest(resultUrl))
-      #    self.scrapeAmazon_html(results, media, lang, amazonItemHTML, scoreOverride=True)
-      #    break
-
     results.Sort('score', descending=True)
     
     # Finally, de-dupe the results.
@@ -216,10 +211,6 @@ class IMDBAgent(Agent.Movies):
     for dupe in toWhack:
       results.Remove(dupe)
       
-    #for r in results:
-    #  print "Result:", r.name
-    
-  
   def update(self, metadata, media, lang):
 
     # FAST FAIL.
