@@ -199,6 +199,18 @@ class PlexMovieAgent(Agent.Movies):
     # Set the title.
     metadata.title = media.title
 
+    # FIXME, this is dumb, we already know the title.
+    m = re.search('(tt[0-9]+)', metadata.guid)
+    if m:
+      id = m.groups(1)[0]
+      
+      jsonObj = JSON.ObjectFromURL(GOOGLE_JSON_URL % id)
+      if jsonObj['responseData'] != None:
+        jsonObj = jsonObj['responseData']['results']
+        
+      (title, year) = self.parseTitle(jsonObj[0]['titleNoFormatting'])
+      metadata.year = year
+
     #metadata.studio = info_dict["Company"].find('a').text.strip()
     #metadata.rating = float(self.el_text(page, '//div[@class="starbar-meta"]/b').split('/')[0])
     #metadata.duration = int(info_dict['Runtime'].text.strip().split()[0]) * 60 * 1000
