@@ -247,6 +247,8 @@ class PlexMovieAgent(Agent.Movies):
       imdbName = m.groups(1)[0]
       imdbName = re.sub('^[iI][mM][dD][bB][ ]*:[ ]*', '', imdbName)
       imdbName = HTML.ElementFromString(imdbName).text
+      if imdbName[0] == '"' and imdbName[-1] == '"':
+        imdbName = imdbName[1:-1]
       
       imdbYear = int(m.groups(1)[1])
       return (imdbName, imdbYear)
