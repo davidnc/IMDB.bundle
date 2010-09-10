@@ -100,6 +100,8 @@ class PlexMovieAgent(Agent.Movies):
               # Doesn't match, let's skip it.
               Log("Skipping strange title: " + title)
               continue
+            else:
+              Log("Using [%s] derived from [%s]" % (imdbName, title))
               
             scorePenalty = 0
             url = r[urlKey].lower().replace('us.vdc','www').replace('title?','title/tt') #massage some of the weird url's google has
