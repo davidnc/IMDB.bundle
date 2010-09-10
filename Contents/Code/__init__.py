@@ -68,7 +68,7 @@ class PlexMovieAgent(Agent.Movies):
         hasResults = False
         try:
           if s.count('bing.net') > 0:
-            jsonObj = JSON.ObjectFromURL(s, cacheTime=CACHE_1DAY)['SearchResponse']['Web']
+            jsonObj = JSON.ObjectFromURL(s)['SearchResponse']['Web']
             if jsonObj['Total'] > 0:
               jsonObj = jsonObj['Results']
               hasResults = True
@@ -94,16 +94,9 @@ class PlexMovieAgent(Agent.Movies):
             url = r[urlKey]
             title = r[titleKey]
 
-            # Parse out title, year, and extra.
-            titleRx = '(.*) \(([0-9]+)(/.*)?\).*'
-            m = re.match(titleRx, title)
-            if m:
-              # A bit more processing for the name.
-              imdbName = m.groups(1)[0]
-              imdbName = re.sub('^[iI][mM][dD][bB][ ]*:[ ]*', '', imdbName)
-              
-              imdbYear = int(m.groups(1)[1])
-            else:
+            # Parse the name and year.
+            imdbName, imdbYear = self.parseTitle(title)
+            if not imdbName:
               # Doesn't match, let's skip it.
               Log("Skipping strange title: " + title)
               continue
@@ -177,7 +170,7 @@ class PlexMovieAgent(Agent.Movies):
                   scorePenalty += 25
                 
                 # Finally, add the result.
-                results.Append( MetadataSearchResult(id = id, name  = imdbName, year = imdbYear, lang  = lang, score = score - (scorePenalty + subsequentSearchPenalty)) )
+                results.Append(MetadataSearchResult(id = id, name  = imdbName, year = imdbYear, lang  = lang, score = score - (scorePenalty + subsequentSearchPenalty)))
               except:
                 Log('Exception processing IMDB Result')
                 pass
@@ -201,7 +194,18 @@ class PlexMovieAgent(Agent.Movies):
       
   def update(self, metadata, media, lang):
     
-    pass
+    # FIXME, this is dumb, we already know the title.
+    m = re.search('(tt[0-9]+)', metadata.guid)
+    if m:
+      id = m.groups(1)[0]
+      
+      jsonObj = JSON.ObjectFromURL(GOOGLE_JSON_URL % id)
+      if jsonObj['responseData'] != None:
+        jsonObj = jsonObj['responseData']['results']
+        
+      (title, year) = self.parseTitle(jsonObj[0]['titleNoFormatting'])
+      metadata.title = title
+      metadata.year = year
 
     #metadata.studio = info_dict["Company"].find('a').text.strip()
     #metadata.rating = float(self.el_text(page, '//div[@class="starbar-meta"]/b').split('/')[0])
@@ -230,3 +234,18 @@ class PlexMovieAgent(Agent.Movies):
     #if name not in metadata.posters:
     #  metadata.posters[name] = Proxy.Media(data)
   
+  def parseTitle(self, title):
+    # Parse out title, year, and extra.
+    titleRx = '(.*) \(([0-9]+)(/.*)?\).*'
+    m = re.match(titleRx, title)
+    if m:
+      # A bit more processing for the name.
+      imdbName = m.groups(1)[0]
+      imdbName = re.sub('^[iI][mM][dD][bB][ ]*:[ ]*', '', imdbName)
+      imdbName = HTML.ElementFromString(imdbName).text
+      
+      imdbYear = int(m.groups(1)[1])
+      return (imdbName, imdbYear)
+    
+    return (None, None)
+    
