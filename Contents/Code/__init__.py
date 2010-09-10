@@ -193,19 +193,9 @@ class PlexMovieAgent(Agent.Movies):
       results.Remove(dupe)
       
   def update(self, metadata, media, lang):
-    
-    # FIXME, this is dumb, we already know the title.
-    m = re.search('(tt[0-9]+)', metadata.guid)
-    if m:
-      id = m.groups(1)[0]
-      
-      jsonObj = JSON.ObjectFromURL(GOOGLE_JSON_URL % id)
-      if jsonObj['responseData'] != None:
-        jsonObj = jsonObj['responseData']['results']
-        
-      (title, year) = self.parseTitle(jsonObj[0]['titleNoFormatting'])
-      metadata.title = title
-      metadata.year = year
+
+    # Set the title.
+    metadata.title = media.title
 
     #metadata.studio = info_dict["Company"].find('a').text.strip()
     #metadata.rating = float(self.el_text(page, '//div[@class="starbar-meta"]/b').split('/')[0])
